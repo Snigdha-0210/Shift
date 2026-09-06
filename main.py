@@ -3,6 +3,7 @@ import random
 import math
 import os
 import array
+import asyncio
 
 # ============================================================
 # INITIALIZATION
@@ -2306,307 +2307,298 @@ def activate_settings_option():
 # MAIN LOOP
 # ============================================================
 
-running = True
+async def main():
+    global game_state
+    global settings_selection
+    global countdown_timer
+    global screen
 
-while running:
+    running = True
 
-    dt = clock.tick(60) / 1000.0
+    while running:
 
-    # ========================================================
-    # EVENTS
-    # ========================================================
+        dt = clock.tick(60) / 1000.0
 
-    for event in pygame.event.get():
+        # ====================================================
+        # EVENTS
+        # ====================================================
 
-        if event.type == pygame.QUIT:
+        for event in pygame.event.get():
 
-            running = False
+            if event.type == pygame.QUIT:
 
-        if event.type == pygame.KEYDOWN:
+                running = False
 
-            # ------------------------------------------------
-            # PLAYING
-            # ------------------------------------------------
+            if event.type == pygame.KEYDOWN:
 
-            if game_state == PLAYING:
+                # --------------------------------------------
+                # PLAYING
+                # --------------------------------------------
 
-                if event.key in (
+                if game_state == PLAYING:
 
-                    pygame.K_LEFT,
+                    if event.key in (
+                        pygame.K_LEFT,
+                        pygame.K_a
+                    ):
 
-                    pygame.K_a
+                        submit_input(
+                            SHIFT_LEFT
+                        )
 
-                ):
+                    elif event.key in (
+                        pygame.K_RIGHT,
+                        pygame.K_d
+                    ):
 
-                    submit_input(
-                        SHIFT_LEFT
-                    )
+                        submit_input(
+                            SHIFT_RIGHT
+                        )
 
-                elif event.key in (
+                # --------------------------------------------
+                # MENU
+                # --------------------------------------------
 
-                    pygame.K_RIGHT,
+                elif game_state == MENU:
 
-                    pygame.K_d
+                    if event.key == pygame.K_SPACE:
 
-                ):
+                        start_game()
 
-                    submit_input(
-                        SHIFT_RIGHT
-                    )
+                    elif event.key == pygame.K_s:
 
-            # ------------------------------------------------
-            # MENU
-            # ------------------------------------------------
+                        settings_selection = 0
 
-            elif game_state == MENU:
+                        game_state = SETTINGS
 
-                if event.key == pygame.K_SPACE:
+                    elif event.key == pygame.K_ESCAPE:
 
-                    start_game()
+                        running = False
 
-                elif event.key == pygame.K_s:
+                # --------------------------------------------
+                # GAME OVER
+                # --------------------------------------------
 
-                    settings_selection = 0
+                elif game_state == GAME_OVER:
 
-                    game_state = SETTINGS
+                    if event.key == pygame.K_SPACE:
 
-                elif event.key == pygame.K_ESCAPE:
+                        start_game()
 
-                    running = False
+                    elif event.key == pygame.K_ESCAPE:
 
-            # ------------------------------------------------
-            # GAME OVER
-            # ------------------------------------------------
+                        game_state = MENU
 
-            elif game_state == GAME_OVER:
+                # --------------------------------------------
+                # SETTINGS
+                # --------------------------------------------
 
-                if event.key == pygame.K_SPACE:
+                elif game_state == SETTINGS:
 
-                    start_game()
+                    if event.key in (
+                        pygame.K_UP,
+                        pygame.K_w
+                    ):
 
-                elif event.key == pygame.K_ESCAPE:
+                        settings_move_selection(
+                            -1
+                        )
 
-                    game_state = MENU
+                    elif event.key in (
+                        pygame.K_DOWN,
+                        pygame.K_s
+                    ):
 
-            # ------------------------------------------------
-            # SETTINGS
-            # ------------------------------------------------
+                        settings_move_selection(
+                            1
+                        )
 
-            elif game_state == SETTINGS:
+                    elif event.key in (
+                        pygame.K_RETURN,
+                        pygame.K_KP_ENTER
+                    ):
 
-                if event.key in (
+                        activate_settings_option()
 
-                    pygame.K_UP,
+                    elif event.key == pygame.K_ESCAPE:
 
-                    pygame.K_w
+                        game_state = MENU
 
-                ):
+                # --------------------------------------------
+                # CONTROLS
+                # --------------------------------------------
 
-                    settings_move_selection(
-                        -1
-                    )
+                elif game_state == CONTROLS:
 
-                elif event.key in (
+                    if event.key == pygame.K_ESCAPE:
 
-                    pygame.K_DOWN,
+                        game_state = SETTINGS
 
-                    pygame.K_s
+        # ====================================================
+        # FUTURE HARDWARE
+        # ====================================================
 
-                ):
+        read_hardware_input()
 
-                    settings_move_selection(
-                        1
-                    )
+        # ====================================================
+        # INPUT SYSTEM
+        # ====================================================
 
-                elif event.key in (
+        process_input_commands()
 
-                    pygame.K_RETURN,
+        # ====================================================
+        # GLOBAL UPDATES
+        # ====================================================
 
-                    pygame.K_KP_ENTER
+        update_background(dt)
 
-                ):
+        update_speed_lines(dt)
 
-                    activate_settings_option()
+        update_particles(dt)
 
-                elif event.key == pygame.K_ESCAPE:
+        update_score_popups(dt)
 
-                    game_state = MENU
+        update_level_message(dt)
 
-            # ------------------------------------------------
-            # CONTROLS
-            # ------------------------------------------------
+        update_shake(dt)
 
-            elif game_state == CONTROLS:
+        update_flash(dt)
 
-                if event.key == pygame.K_ESCAPE:
+        # ====================================================
+        # COUNTDOWN
+        # ====================================================
 
-                    game_state = SETTINGS
+        if game_state == COUNTDOWN:
 
-    # ========================================================
-    # FUTURE HARDWARE
-    # ========================================================
+            countdown_timer += dt
 
-    read_hardware_input()
+            if countdown_timer >= 3:
 
-    # ========================================================
-    # INPUT SYSTEM
-    # ========================================================
+                game_state = PLAYING
 
-    process_input_commands()
+        # ====================================================
+        # PLAYING
+        # ====================================================
 
-    # ========================================================
-    # GLOBAL UPDATES
-    # ========================================================
+        elif game_state == PLAYING:
 
-    update_background(dt)
+            update_player(dt)
 
-    update_speed_lines(dt)
+            update_obstacles(dt)
 
-    update_particles(dt)
+            if check_collision():
 
-    update_score_popups(dt)
+                create_particles(
+                    player_x,
+                    PLAYER_Y,
+                    60
+                )
 
-    update_level_message(dt)
+                trigger_shake(
+                    0.5,
+                    15
+                )
 
-    update_shake(dt)
+                trigger_flash()
 
-    update_flash(dt)
+                play_sound(
+                    collision_sound
+                )
 
-    # ========================================================
-    # COUNTDOWN
-    # ========================================================
+                game_state = GAME_OVER
 
-    if game_state == COUNTDOWN:
+        # ====================================================
+        # DRAW
+        # ====================================================
 
-        countdown_timer += dt
-
-        if countdown_timer >= 3:
-
-            game_state = PLAYING
-
-    # ========================================================
-    # PLAYING
-    # ========================================================
-
-    elif game_state == PLAYING:
-
-        update_player(dt)
-
-        update_obstacles(dt)
-
-        if check_collision():
-
-            create_particles(
-
-                player_x,
-
-                PLAYER_Y,
-
-                60
-            )
-
-            trigger_shake(
-                0.5,
-                15
-            )
-
-            trigger_flash()
-
-            play_sound(
-                collision_sound
-            )
-
-            game_state = GAME_OVER
-
-    # ========================================================
-    # DRAW
-    # ========================================================
-
-    offset_x, offset_y = (
-        get_screen_offset()
-    )
-
-    world_surface = pygame.Surface(
-        (WIDTH, HEIGHT)
-    )
-
-    world_surface.fill(
-        BLACK
-    )
-
-    old_screen = screen
-
-    screen = world_surface
-
-    # --------------------------------------------------------
-    # DRAW STATE
-    # --------------------------------------------------------
-
-    if game_state == MENU:
-
-        draw_menu()
-
-    elif game_state == COUNTDOWN:
-
-        draw_countdown()
-
-    elif game_state == PLAYING:
-
-        draw_background()
-
-        draw_road()
-
-        draw_speed_lines()
-
-        draw_obstacles()
-
-        draw_player()
-
-        draw_particles()
-
-        draw_score_popups()
-
-        draw_hud()
-
-        draw_level_message()
-
-    elif game_state == GAME_OVER:
-
-        draw_game_over()
-
-    elif game_state == SETTINGS:
-
-        draw_settings()
-
-    elif game_state == CONTROLS:
-
-        draw_settings()
-
-        draw_controls_panel()
-
-    # --------------------------------------------------------
-    # RESTORE SCREEN
-    # --------------------------------------------------------
-
-    screen = old_screen
-
-    screen.fill(
-        BLACK
-    )
-
-    screen.blit(
-
-        world_surface,
-
-        (
-            offset_x,
-            offset_y
+        offset_x, offset_y = (
+            get_screen_offset()
         )
-    )
 
-    draw_flash()
+        world_surface = pygame.Surface(
+            (WIDTH, HEIGHT)
+        )
 
-    pygame.display.flip()
+        world_surface.fill(
+            BLACK
+        )
+
+        old_screen = screen
+
+        screen = world_surface
+
+        # ----------------------------------------------------
+        # DRAW STATE
+        # ----------------------------------------------------
+
+        if game_state == MENU:
+
+            draw_menu()
+
+        elif game_state == COUNTDOWN:
+
+            draw_countdown()
+
+        elif game_state == PLAYING:
+
+            draw_background()
+
+            draw_road()
+
+            draw_speed_lines()
+
+            draw_obstacles()
+
+            draw_player()
+
+            draw_particles()
+
+            draw_score_popups()
+
+            draw_hud()
+
+            draw_level_message()
+
+        elif game_state == GAME_OVER:
+
+            draw_game_over()
+
+        elif game_state == SETTINGS:
+
+            draw_settings()
+
+        elif game_state == CONTROLS:
+
+            draw_settings()
+
+            draw_controls_panel()
+
+        # ----------------------------------------------------
+        # RESTORE SCREEN
+        # ----------------------------------------------------
+
+        screen = old_screen
+
+        screen.fill(
+            BLACK
+        )
+
+        screen.blit(
+            world_surface,
+            (
+                offset_x,
+                offset_y
+            )
+        )
+
+        draw_flash()
+
+        pygame.display.flip()
+
+        await asyncio.sleep(0)
+
+    pygame.quit()
 
 
-pygame.quit()
+if __name__ == "__main__":
+    asyncio.run(main())

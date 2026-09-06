@@ -2,14 +2,15 @@
 
 > **Last Updated**: September 7, 2026  
 > **Repository**: [https://github.com/Snigdha-0210/Shift](https://github.com/Snigdha-0210/Shift)  
-> **Current Engine**: Python 3.12+ & Pygame 2.6.x  
-> **Architecture Version**: 2.0 (Buffered Input & Settings System)
+> **Live Web Game**: [https://snigdha-0210.github.io/Shift/](https://snigdha-0210.github.io/Shift/)  
+> **Current Engine**: Python 3.12+ & Pygame 2.6.x (with Pygbag WebAssembly)  
+> **Architecture Version**: 2.1 (Async Event Loop & WebAssembly Deployment)
 
 ---
 
 ## 📌 Executive Summary
 
-**SHIFT** is a fast-paced cyberpunk 3-lane reflex obstacle dodger. The codebase has evolved into a modular, state-driven arcade game with synthesized procedural audio, particle physics, camera shake, visual impact feedback, persistent high-score tracking, and an interactive Settings menu.
+**SHIFT** is a fast-paced cyberpunk 3-lane reflex obstacle dodger. The codebase is a modular, state-driven arcade game with synthesized procedural audio, particle physics, camera shake, visual impact feedback, persistent high-score tracking, interactive Settings menu, and automated GitHub Pages WebAssembly deployment.
 
 ---
 
@@ -41,13 +42,16 @@
 - ⚡ **Speed Lines**: 20 animated transit stream lines.
 - 💥 **Particle System**: Gravity-assisted explosion bursts on crash and level-up.
 - 📳 **Camera Shake & Impact Flash**: Rendered via an off-screen world buffer surface.
-- 🟢 **Floating Floating Popups**: `+1` text floating on score increase.
+- 🟢 **Floating Popups**: `+1` text floating on score increase.
 - 🏆 **Level-Up Notifications**: Banner announcement and chime when advancing tiers.
 
 ### 5. Persistence & Input Abstraction
 - **High-Score**: Automatically saved to / loaded from `highscore.txt`.
 - **Input System**: Buffered command queue (`submit_input(direction)` $\rightarrow$ `process_input_commands()`).
 - **Hardware Ready**: `read_hardware_input()` stub ready for Arduino, ESP32, or Bluetooth controllers.
+
+### 6. Web & Desktop Dual-Compatibility
+- **Async Game Loop**: `async def main():` with `await asyncio.sleep(0)` ensures 100% native 60 FPS performance on desktop and instant WebAssembly rendering in modern web browsers.
 
 ---
 
@@ -56,11 +60,12 @@
 | File | Role |
 | :--- | :--- |
 | `main.py` | Complete game loop, state handlers, rendering engine, and math helpers. |
+| `.github/workflows/deploy.yml` | Automated GitHub Actions CI/CD pipeline to build and deploy WebAssembly game to GitHub Pages. |
 | `highscore.txt` | Local high-score storage file. |
 | `assets/banner.jpg` | High-resolution cyber banner for README and promotional use. |
 | `assets/icon.jpg` | Application icon and badge. |
-| `requirements.txt` | Pinned dependencies (`pygame>=2.6.0`). |
-| `README.md` | Full repository presentation with architecture diagrams. |
+| `requirements.txt` | Pinned dependencies (`pygame>=2.6.0`, `pygbag>=0.9.0`). |
+| `README.md` | Full repository presentation with architecture diagrams and live demo link. |
 | `sync.ps1` | One-click PowerShell Git push automation script. |
 | `PROGRESS.md` | *This file* — dev journal, architecture summary, and continuation guide. |
 
@@ -69,7 +74,7 @@
 ## 🚀 Where We Left Off (Ready for Next Session)
 
 ### Priority Features to Implement Next:
-1. **Power-Up System**:
+1. **Power-Up Pickups**:
    - 🛡️ *Shield Pickup* (Absorb 1 collision).
    - ⏱️ *Slow-Mo / EMP* (Temporarily decelerate obstacles).
    - ⚡ *Hyper-Drive Boost* (Invulnerability and auto-lane dodge for 3 seconds).
@@ -82,26 +87,10 @@
 
 ---
 
-## 🌐 Deployment Plan
-
-### Option 1: Web Deployment via WebAssembly (Pygbag) — *Recommended for Web*
-Run Python Pygame directly in any web browser without installation:
-1. Install `pygbag`: `pip install pygbag`
-2. Test web build locally: `pygbag .` (runs a local web server at `http://localhost:8000`)
-3. Deploy to **GitHub Pages** or **Itch.io** automatically via GitHub Actions.
-
-### Option 2: Standalone Windows Desktop Executable (`.exe`)
-Package the game as a single portable `.exe` for Windows users:
-1. Install PyInstaller: `pip install pyinstaller`
-2. Build executable: `pyinstaller --onefile --noconsole --name "SHIFT" main.py`
-3. The executable will be generated in `dist/SHIFT.exe`.
-
----
-
 ## 🛠️ Quick Commands
 
 ```powershell
-# Run the game
+# Run the game locally
 python main.py
 
 # Push future changes to GitHub

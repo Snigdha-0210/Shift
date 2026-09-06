@@ -6,23 +6,24 @@
 
   <h1>⚡ S H I F T</h1>
   <p><strong>DODGE. SHIFT. SURVIVE.</strong></p>
-  <p><em>An adrenaline-fueled, cyberpunk-themed 3-lane reflex obstacle dodger built with Python and Pygame.</em></p>
+  <p><em>An adrenaline-fueled, cyberpunk-themed 3-lane reflex obstacle dodger built with Python, Pygame, and WebAssembly.</em></p>
 
   <p>
+    <a href="https://snigdha-0210.github.io/Shift/"><img src="https://img.shields.io/badge/🎮_Play_Live-WebAssembly-00E5FF?style=for-the-badge&logo=webassembly&logoColor=white" alt="Play Live in Browser"></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
     <a href="https://www.pygame.org/"><img src="https://img.shields.io/badge/Pygame-2.6.x-00D4B2?style=for-the-badge&logo=gamemaker&logoColor=white" alt="Pygame 2.6.x"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-00E5FF?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="MIT License"></a>
-    <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-lightgrey?style=for-the-badge" alt="Cross Platform">
+    <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=for-the-badge" alt="Cross Platform">
     <img src="https://img.shields.io/badge/FPS-60%20(Delta--Time)-FF0055?style=for-the-badge" alt="60 FPS">
   </p>
 
   <p>
+    <a href="https://snigdha-0210.github.io/Shift/"><strong>🚀 Play Online Now</strong></a> •
     <a href="#-key-features">Features</a> •
     <a href="#-game-architecture">Architecture</a> •
     <a href="#-controls--mechanics">Controls</a> •
     <a href="#-difficulty-progression">Difficulty Curve</a> •
     <a href="#-installation--quickstart">Installation</a> •
-    <a href="#-deployment">Deployment</a> •
     <a href="PROGRESS.md">Dev Progress Log</a>
   </p>
 
@@ -34,7 +35,7 @@
 
 **SHIFT** places you in the cockpit of a glowing high-speed cyber-vehicle traversing an infinite neon speedway. Obstacles cascade in accelerating frequencies across three lanes. Your objective is pure reflex survival: switch lanes, avoid barricades, navigate multi-lane blockades, and climb the high-score leaderboard.
 
-Designed with **delta-time physics**, **procedural sine-wave audio synthesis**, **particle physics**, and **fair spawning algorithms**, SHIFT delivers fluid, frame-rate-independent arcade action that scales dynamically with your score.
+Designed with **delta-time physics**, **procedural sine-wave audio synthesis**, **particle physics**, and **fair spawning algorithms**, SHIFT delivers fluid, frame-rate-independent arcade action both natively on desktop and directly inside any web browser via **WebAssembly**.
 
 <div align="center">
   <img src="assets/icon.jpg" alt="SHIFT Icon" width="180" style="border-radius: 20px; margin: 10px;" />
@@ -44,6 +45,7 @@ Designed with **delta-time physics**, **procedural sine-wave audio synthesis**, 
 
 ## ✨ Key Features
 
+- 🌐 **WebAssembly Instant Play**: Play straight in your web browser with zero installation at [https://snigdha-0210.github.io/Shift/](https://snigdha-0210.github.io/Shift/).
 - 🏎️ **Continuous Smooth Interpolation**: Smooth lane transitioning physics ($1200\text{ px/s}$) with responsive target dampening.
 - ⚙️ **Interactive Settings & Audio Toggle**: Full in-game Settings menu allowing you to toggle synthesized sound effects, inspect controls, and navigate menus.
 - 🧠 **Fair Spawning Heuristics & Pattern Memory**: Guarantees at least one open escape lane at all times while preventing repetitive patterns.
@@ -99,7 +101,7 @@ sequenceDiagram
         CollisionSystem->>CollisionSystem: Increment Score, Level Up Check & Disk Save
     end
     Renderer->>Renderer: Render World Surface -> Apply Screen Shake Offset -> Draw Flash
-    Renderer-->>Player: Flip Frame Buffer (60 FPS)
+    Renderer-->>Player: Flip Frame Buffer (60 FPS / WebAssembly)
 ```
 
 ---
@@ -133,7 +135,7 @@ The difficulty system dynamically scales obstacle speeds and spawn frequencies b
 
 ---
 
-## 🚀 Installation & Quickstart
+## 🚀 Installation & Quickstart (Local Play)
 
 ### Prerequisites
 - **Python 3.10** or higher
@@ -171,23 +173,14 @@ python main.py
 
 ---
 
-## 🌐 Deployment Options
+## 🌐 Web Deployment (GitHub Pages)
 
-### 1. Web Browser Deployment (Pygbag / WebAssembly)
-You can deploy SHIFT to run in any web browser without installation:
-```bash
-pip install pygbag
-pygbag .
-```
-Open `http://localhost:8000` to test in your browser. This can be published directly to **GitHub Pages** or **Itch.io**.
+The repository is equipped with an automated GitHub Actions CI/CD workflow (`.github/workflows/deploy.yml`) that compiles the Python source into WebAssembly via Pygbag on every push.
 
-### 2. Standalone Windows Desktop App (`.exe`)
-To package SHIFT as a portable Windows `.exe` that anyone can double-click to play:
-```bash
-pip install pyinstaller
-pyinstaller --onefile --noconsole --name "SHIFT" main.py
-```
-Your standalone game executable will be generated in the `dist/` folder!
+To enable GitHub Pages hosting:
+1. Open your repository on GitHub: **`https://github.com/Snigdha-0210/Shift/settings/pages`**
+2. Under **Build and deployment** $\rightarrow$ **Source**, select **GitHub Actions**.
+3. Your game is live at **`https://snigdha-0210.github.io/Shift/`**!
 
 ---
 
@@ -195,6 +188,9 @@ Your standalone game executable will be generated in the `dist/` folder!
 
 ```text
 SHIFT/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml      # Automated GitHub Pages WebAssembly CI/CD
 ├── assets/
 │   ├── banner.jpg          # Repository header & promotional banner
 │   └── icon.jpg            # Cyberpunk game badge & application icon
