@@ -1,14 +1,21 @@
 import pygame
-import sys
 import random
 import math
-import array
+from array import array
 
 # ============================================================
 # INITIALIZATION
 # ============================================================
 
 pygame.init()
+
+# Audio setup
+AUDIO_ENABLED = True
+
+try:
+    pygame.mixer.init()
+except pygame.error:
+    AUDIO_ENABLED = False
 
 WIDTH = 900
 HEIGHT = 700
@@ -22,210 +29,69 @@ clock = pygame.time.Clock()
 # COLORS
 # ============================================================
 
-BACKGROUND = (10, 12, 18)
+BLACK = (8, 10, 16)
+ROAD_COLOR = (35, 38, 45)
+ROAD_EDGE = (75, 80, 90)
 
-ROAD_COLOR = (42, 44, 50)
-ROAD_EDGE_COLOR = (150, 153, 160)
-LANE_LINE_COLOR = (100, 103, 110)
+WHITE = (240, 240, 245)
+GREY = (150, 155, 165)
 
-PLAYER_COLOR = (0, 220, 255)
-PLAYER_GLOW = (0, 120, 150)
-PLAYER_DARK = (0, 90, 115)
+CYAN = (0, 220, 255)
+CYAN_BRIGHT = (100, 245, 255)
 
-WINDOW_COLOR = (15, 35, 48)
-WHEEL_COLOR = (18, 20, 24)
+RED = (240, 55, 55)
+ORANGE = (255, 150, 40)
+YELLOW = (255, 220, 70)
 
-OBSTACLE_COLOR = (220, 55, 55)
-OBSTACLE_DARK = (120, 25, 25)
-OBSTACLE_GLOW = (120, 30, 30)
+DARK_RED = (100, 20, 25)
 
-WARNING_COLOR = (255, 190, 40)
-
-WHITE = (240, 240, 240)
-GREY = (160, 160, 160)
+GREEN = (70, 230, 130)
 
 # ============================================================
-# AUDIO
+# GAME STATES
 # ============================================================
 
-# We attempt to initialize the mixer.
-# If the computer has an audio problem, the game
-# will still run without sound.
+MENU = "menu"
+COUNTDOWN = "countdown"
+PLAYING = "playing"
+GAME_OVER = "game_over"
 
-audio_enabled = True
-
-try:
-
-    pygame.mixer.init(
-        frequency=44100,
-        size=-16,
-        channels=1,
-        buffer=512
-    )
-
-except pygame.error:
-
-    audio_enabled = False
-
-
-# ------------------------------------------------------------
-# CREATE SIMPLE GENERATED SOUNDS
-# ------------------------------------------------------------
-
-def create_tone(
-    frequency,
-    duration,
-    volume=0.25
-):
-    """
-    Generates a simple electronic tone.
-
-    We create the sound ourselves rather than requiring
-    external sound files.
-    """
-
-    if not audio_enabled:
-        return None
-
-    sample_rate = 44100
-
-    sample_count = int(
-        sample_rate * duration
-    )
-
-    samples = array.array(
-        "h"
-    )
-
-    amplitude = int(
-        32767 * volume
-    )
-
-    for i in range(sample_count):
-
-        time_value = i / sample_rate
-
-        wave = math.sin(
-            2
-            * math.pi
-            * frequency
-            * time_value
-        )
-
-        # Small fade-out to prevent clicking.
-        fade = 1.0 - (
-            i / sample_count
-        )
-
-        value = int(
-            amplitude
-            * wave
-            * fade
-        )
-
-        samples.append(value)
-
-    return pygame.mixer.Sound(
-        buffer=samples.tobytes()
-    )
-
+game_state = MENU
 
 # ============================================================
-# GAME SOUNDS
+# LANES
 # ============================================================
-
-if audio_enabled:
-
-    move_sound = create_tone(
-        520,
-        0.08,
-        0.20
-    )
-
-    score_sound = create_tone(
-        850,
-        0.12,
-        0.25
-    )
-
-    countdown_sound = create_tone(
-        500,
-        0.15,
-        0.20
-    )
-
-    start_sound = create_tone(
-        950,
-        0.25,
-        0.30
-    )
-
-    collision_sound = create_tone(
-        90,
-        0.45,
-        0.35
-    )
-
-else:
-
-    move_sound = None
-    score_sound = None
-    countdown_sound = None
-    start_sound = None
-    collision_sound = None
-
-
-def play_sound(sound):
-    """
-    Safely plays a sound.
-    """
-
-    if not audio_enabled:
-        return
-
-    if sound is None:
-        return
-
-    try:
-
-        sound.play()
-
-    except pygame.error:
-
-        pass
-
-
-# ============================================================
-# ROAD
-# ============================================================
-
-ROAD_WIDTH = 600
-ROAD_HEIGHT = 600
-
-ROAD_X = (WIDTH - ROAD_WIDTH) // 2
-ROAD_Y = 50
-
-LANE_WIDTH = ROAD_WIDTH // 3
 
 LEFT = 0
 MIDDLE = 1
 RIGHT = 2
 
-LANES = [LEFT, MIDDLE, RIGHT]
+LANE_COUNT = 3
+
+ROAD_LEFT = 180
+ROAD_RIGHT = 720
+
+LANE_WIDTH = (ROAD_RIGHT - ROAD_LEFT) / LANE_COUNT
+
+LANE_CENTERS = [
+    ROAD_LEFT + LANE_WIDTH * 0.5,
+    ROAD_LEFT + LANE_WIDTH * 1.5,
+    ROAD_LEFT + LANE_WIDTH * 2.5,
+]
 
 # ============================================================
 # PLAYER
 # ============================================================
 
-PLAYER_WIDTH = 80
-PLAYER_HEIGHT = 100
-
-PLAYER_Y = HEIGHT - 140
-
 player_lane = MIDDLE
 
-player_x = 0
-target_x = 0
+player_x = LANE_CENTERS[MIDDLE]
+player_y = 570
+
+PLAYER_WIDTH = 70
+PLAYER_HEIGHT = 110
+
+target_x = player_x
 
 PLAYER_MOVE_SPEED = 900
 
@@ -233,18 +99,26 @@ PLAYER_MOVE_SPEED = 900
 # OBSTACLES
 # ============================================================
 
-OBSTACLE_WIDTH = 80
-OBSTACLE_HEIGHT = 100
-
-obstacle_spawn_y = (
-    ROAD_Y
-    - OBSTACLE_HEIGHT
-    - 20
-)
-
-obstacle_timer = 0
-
 patterns = []
+
+OBSTACLE_WIDTH = 120
+OBSTACLE_HEIGHT = 55
+
+# ============================================================
+# SCORE
+# ============================================================
+
+score = 0
+high_score = 0
+
+# ============================================================
+# DIFFICULTY
+# ============================================================
+
+obstacle_speed = 300
+spawn_timer = 0
+spawn_interval = 1.2
+current_level = 1
 
 # ============================================================
 # ROAD ANIMATION
@@ -252,268 +126,451 @@ patterns = []
 
 road_line_offset = 0
 
-ROAD_LINE_HEIGHT = 70
-ROAD_LINE_GAP = 70
-
-ROAD_LINE_SPEED_MULTIPLIER = 1.0
-
-# ============================================================
-# GAME STATES
-# ============================================================
-
-MENU = 0
-COUNTDOWN = 1
-PLAYING = 2
-GAME_OVER = 3
-
-game_state = MENU
-
 # ============================================================
 # COUNTDOWN
 # ============================================================
 
-countdown_time = 0
+countdown_timer = 0
 countdown_number = 3
 
-last_countdown_number = 3
-
 # ============================================================
-# GAME VARIABLES
+# PARTICLE SYSTEM
 # ============================================================
 
-score = 0
-high_score = 0
+particles = []
+
+score_popups = []
+
+# ============================================================
+# SCREEN SHAKE
+# ============================================================
+
+screen_shake_time = 0
+screen_shake_strength = 0
+
+# ============================================================
+# IMPACT FLASH
+# ============================================================
+
+impact_flash = 0
 
 # ============================================================
 # FONTS
 # ============================================================
 
-font_title = pygame.font.SysFont(
-    "arial",
-    90,
-    bold=True
-)
+font_large = pygame.font.SysFont("arial", 72, bold=True)
+font_title = pygame.font.SysFont("arial", 100, bold=True)
 
-font_huge = pygame.font.SysFont(
-    "arial",
-    110,
-    bold=True
-)
-
-font_large = pygame.font.SysFont(
-    "arial",
-    48,
-    bold=True
-)
-
-font_medium = pygame.font.SysFont(
-    "arial",
-    32,
-    bold=True
-)
-
-font_small = pygame.font.SysFont(
-    "arial",
-    24
-)
+font_medium = pygame.font.SysFont("arial", 36, bold=True)
+font_small = pygame.font.SysFont("arial", 24)
+font_tiny = pygame.font.SysFont("arial", 18)
 
 # ============================================================
-# HELPER FUNCTIONS
+# SOUND GENERATION
 # ============================================================
 
 
-def get_lane_x(lane):
+def create_tone(frequency, duration, volume=0.2):
     """
-    Returns center X coordinate of a lane.
+    Creates a simple electronic sound without external files.
     """
 
-    return (
-        ROAD_X
-        + lane * LANE_WIDTH
-        + LANE_WIDTH // 2
+    if not AUDIO_ENABLED:
+        return None
+
+    sample_rate = 44100
+    sample_count = int(sample_rate * duration)
+
+    buffer = array("h")
+
+    for i in range(sample_count):
+        time = i / sample_rate
+
+        wave = math.sin(2 * math.pi * frequency * time)
+
+        fade = 1.0
+
+        if i < sample_count * 0.1:
+            fade = i / (sample_count * 0.1)
+
+        if i > sample_count * 0.8:
+            fade = (sample_count - i) / (sample_count * 0.2)
+
+        value = int(32767 * wave * volume * fade)
+
+        buffer.append(value)
+
+    try:
+        return pygame.mixer.Sound(buffer=buffer)
+    except pygame.error:
+        return None
+
+
+move_sound = create_tone(500, 0.08, 0.15)
+score_sound = create_tone(900, 0.12, 0.18)
+countdown_sound = create_tone(600, 0.12, 0.15)
+start_sound = create_tone(1100, 0.18, 0.2)
+collision_sound = create_tone(100, 0.4, 0.3)
+
+
+def play_sound(sound):
+    if AUDIO_ENABLED and sound is not None:
+        sound.play()
+
+
+# ============================================================
+# PARTICLE FUNCTIONS
+# ============================================================
+
+
+def spawn_particle(
+    x,
+    y,
+    color,
+    speed_min=50,
+    speed_max=200,
+    size_min=3,
+    size_max=7,
+    life_min=0.3,
+    life_max=0.7,
+    gravity=0,
+):
+    angle = random.uniform(0, math.pi * 2)
+    speed = random.uniform(speed_min, speed_max)
+
+    particle = {
+        "x": x,
+        "y": y,
+        "vx": math.cos(angle) * speed,
+        "vy": math.sin(angle) * speed,
+        "size": random.uniform(size_min, size_max),
+        "life": random.uniform(life_min, life_max),
+        "max_life": 1,
+        "color": color,
+        "gravity": gravity,
+    }
+
+    particle["max_life"] = particle["life"]
+
+    particles.append(particle)
+
+
+def spawn_particles(
+    x,
+    y,
+    count,
+    color,
+    speed_min=50,
+    speed_max=200,
+    size_min=3,
+    size_max=7,
+    life_min=0.3,
+    life_max=0.7,
+    gravity=0,
+):
+    for _ in range(count):
+        spawn_particle(
+            x,
+            y,
+            color,
+            speed_min,
+            speed_max,
+            size_min,
+            size_max,
+            life_min,
+            life_max,
+            gravity,
+        )
+
+
+def update_particles(dt):
+
+    for particle in particles[:]:
+
+        particle["life"] -= dt
+
+        if particle["life"] <= 0:
+            particles.remove(particle)
+            continue
+
+        particle["vy"] += particle["gravity"] * dt
+
+        particle["x"] += particle["vx"] * dt
+        particle["y"] += particle["vy"] * dt
+
+
+def draw_particles(offset_x=0, offset_y=0):
+
+    for particle in particles:
+
+        life_ratio = particle["life"] / particle["max_life"]
+
+        size = max(1, int(particle["size"] * life_ratio))
+
+        color = tuple(
+            max(0, min(255, int(c * life_ratio)))
+            for c in particle["color"]
+        )
+
+        pygame.draw.circle(
+            screen,
+            color,
+            (
+                int(particle["x"] + offset_x),
+                int(particle["y"] + offset_y),
+            ),
+            size,
+        )
+
+
+# ============================================================
+# SCORE POPUPS
+# ============================================================
+
+
+def create_score_popup(x, y):
+
+    score_popups.append(
+        {
+            "x": x,
+            "y": y,
+            "life": 0.8,
+            "max_life": 0.8,
+        }
     )
 
 
-def get_player_x(lane):
-    """
-    Returns player top-left X coordinate.
-    """
+def update_score_popups(dt):
 
-    return (
-        get_lane_x(lane)
-        - PLAYER_WIDTH // 2
-    )
+    for popup in score_popups[:]:
 
+        popup["life"] -= dt
+        popup["y"] -= 60 * dt
 
-def get_obstacle_x(lane):
-    """
-    Returns obstacle top-left X coordinate.
-    """
-
-    return (
-        get_lane_x(lane)
-        - OBSTACLE_WIDTH // 2
-    )
+        if popup["life"] <= 0:
+            score_popups.remove(popup)
 
 
-def get_difficulty():
-    """
-    Returns:
+def draw_score_popups(offset_x=0, offset_y=0):
 
-    obstacle speed
-    spawn interval
-    difficulty level
-    """
+    for popup in score_popups:
+
+        ratio = popup["life"] / popup["max_life"]
+
+        color = (
+            255,
+            int(220 * ratio),
+            int(70 * ratio),
+        )
+
+        text = font_medium.render("+1", True, color)
+
+        rect = text.get_rect(
+            center=(
+                int(popup["x"] + offset_x),
+                int(popup["y"] + offset_y),
+            )
+        )
+
+        screen.blit(text, rect)
+
+
+# ============================================================
+# SCREEN SHAKE
+# ============================================================
+
+
+def trigger_screen_shake(duration, strength):
+
+    global screen_shake_time
+    global screen_shake_strength
+
+    screen_shake_time = duration
+    screen_shake_strength = strength
+
+
+def get_screen_shake():
+
+    if screen_shake_time <= 0:
+        return 0, 0
+
+    intensity = screen_shake_time
+
+    x = random.uniform(
+        -screen_shake_strength,
+        screen_shake_strength,
+    ) * intensity
+
+    y = random.uniform(
+        -screen_shake_strength,
+        screen_shake_strength,
+    ) * intensity
+
+    return x, y
+
+
+# ============================================================
+# DIFFICULTY
+# ============================================================
+
+
+def update_difficulty():
+
+    global obstacle_speed
+    global spawn_interval
+    global current_level
 
     if score < 5:
 
-        return 300, 1.20, 1
+        obstacle_speed = 300
+        spawn_interval = 1.20
+        current_level = 1
 
     elif score < 10:
 
-        return 350, 1.05, 2
+        obstacle_speed = 350
+        spawn_interval = 1.05
+        current_level = 2
 
     elif score < 15:
 
-        return 400, 0.90, 3
+        obstacle_speed = 400
+        spawn_interval = 0.90
+        current_level = 3
 
     elif score < 20:
 
-        return 450, 0.80, 4
+        obstacle_speed = 450
+        spawn_interval = 0.80
+        current_level = 4
 
     else:
 
-        return 500, 0.70, 5
+        obstacle_speed = 500
+        spawn_interval = 0.70
+        current_level = 5
+
+
+# ============================================================
+# SAFE LANE
+# ============================================================
 
 
 def get_reachable_lane():
-    """
-    Chooses current or adjacent lane.
-    """
 
-    possible_lanes = [
-        player_lane
-    ]
+    possible_lanes = [player_lane]
 
     if player_lane > LEFT:
-
-        possible_lanes.append(
-            player_lane - 1
-        )
+        possible_lanes.append(player_lane - 1)
 
     if player_lane < RIGHT:
+        possible_lanes.append(player_lane + 1)
 
-        possible_lanes.append(
-            player_lane + 1
-        )
-
-    return random.choice(
-        possible_lanes
-    )
+    return random.choice(possible_lanes)
 
 
-def choose_pattern_type():
-    """
-    Controls obstacle pattern difficulty.
-    """
+# ============================================================
+# OBSTACLE PATTERNS
+# ============================================================
+
+
+def spawn_pattern():
+
+    safe_lane = get_reachable_lane()
+
+    blocked_lanes = []
 
     if score < 5:
 
-        return "single"
+        # Only one obstacle
+        blocked_lanes = [
+            lane
+            for lane in range(LANE_COUNT)
+            if lane != safe_lane
+        ]
+
+        blocked_lanes = [random.choice(blocked_lanes)]
 
     elif score < 10:
 
         if random.random() < 0.75:
-            return "single"
 
-        return "double"
+            blocked_lanes = [
+                lane
+                for lane in range(LANE_COUNT)
+                if lane != safe_lane
+            ]
+
+            blocked_lanes = [random.choice(blocked_lanes)]
+
+        else:
+
+            blocked_lanes = [
+                lane
+                for lane in range(LANE_COUNT)
+                if lane != safe_lane
+            ]
 
     elif score < 20:
 
         if random.random() < 0.60:
-            return "single"
 
-        return "double"
+            blocked_lanes = [
+                lane
+                for lane in range(LANE_COUNT)
+                if lane != safe_lane
+            ]
+
+            blocked_lanes = [random.choice(blocked_lanes)]
+
+        else:
+
+            blocked_lanes = [
+                lane
+                for lane in range(LANE_COUNT)
+                if lane != safe_lane
+            ]
 
     else:
 
         if random.random() < 0.50:
-            return "single"
 
-        return "double"
+            blocked_lanes = [
+                lane
+                for lane in range(LANE_COUNT)
+                if lane != safe_lane
+            ]
 
+            blocked_lanes = [random.choice(blocked_lanes)]
 
-def spawn_pattern():
-    """
-    Creates a fair obstacle pattern.
-    """
+        else:
 
-    pattern_type = choose_pattern_type()
-
-    safe_lane = get_reachable_lane()
+            blocked_lanes = [
+                lane
+                for lane in range(LANE_COUNT)
+                if lane != safe_lane
+            ]
 
     rects = []
 
-    # --------------------------------------------------------
-    # SINGLE
-    # --------------------------------------------------------
+    for lane in blocked_lanes:
 
-    if pattern_type == "single":
-
-        possible_blocked_lanes = [
-            lane
-            for lane in LANES
-            if lane != safe_lane
-        ]
-
-        blocked_lane = random.choice(
-            possible_blocked_lanes
-        )
-
-        obstacle = pygame.Rect(
-            get_obstacle_x(
-                blocked_lane
-            ),
-            obstacle_spawn_y,
+        rect = pygame.Rect(
+            0,
+            -OBSTACLE_HEIGHT,
             OBSTACLE_WIDTH,
-            OBSTACLE_HEIGHT
+            OBSTACLE_HEIGHT,
         )
 
-        rects.append(
-            obstacle
-        )
+        rect.centerx = LANE_CENTERS[lane]
+        rect.y = -OBSTACLE_HEIGHT
 
-    # --------------------------------------------------------
-    # DOUBLE
-    # --------------------------------------------------------
-
-    else:
-
-        blocked_lanes = [
-            lane
-            for lane in LANES
-            if lane != safe_lane
-        ]
-
-        for lane in blocked_lanes:
-
-            obstacle = pygame.Rect(
-                get_obstacle_x(
-                    lane
-                ),
-                obstacle_spawn_y,
-                OBSTACLE_WIDTH,
-                OBSTACLE_HEIGHT
-            )
-
-            rects.append(
-                obstacle
-            )
+        rects.append(rect)
 
     patterns.append(
         {
             "rects": rects,
-            "scored": False
+            "scored": False,
         }
     )
 
@@ -523,40 +580,7 @@ def spawn_pattern():
 # ============================================================
 
 
-def move_player(dt):
-    """
-    Smoothly moves player toward target.
-    """
-
-    global player_x
-
-    if player_x < target_x:
-
-        player_x += (
-            PLAYER_MOVE_SPEED
-            * dt
-        )
-
-        if player_x > target_x:
-
-            player_x = target_x
-
-    elif player_x > target_x:
-
-        player_x -= (
-            PLAYER_MOVE_SPEED
-            * dt
-        )
-
-        if player_x < target_x:
-
-            player_x = target_x
-
-
 def move_left():
-    """
-    Move one lane left.
-    """
 
     global player_lane
     global target_x
@@ -564,20 +588,26 @@ def move_left():
     if player_lane > LEFT:
 
         player_lane -= 1
+        target_x = LANE_CENTERS[player_lane]
 
-        target_x = get_player_x(
-            player_lane
-        )
+        play_sound(move_sound)
 
-        play_sound(
-            move_sound
+        # Lane change particles
+        spawn_particles(
+            player_x,
+            player_y + PLAYER_HEIGHT * 0.4,
+            10,
+            CYAN,
+            speed_min=40,
+            speed_max=140,
+            size_min=2,
+            size_max=5,
+            life_min=0.2,
+            life_max=0.45,
         )
 
 
 def move_right():
-    """
-    Move one lane right.
-    """
 
     global player_lane
     global target_x
@@ -585,238 +615,37 @@ def move_right():
     if player_lane < RIGHT:
 
         player_lane += 1
+        target_x = LANE_CENTERS[player_lane]
 
-        target_x = get_player_x(
-            player_lane
-        )
+        play_sound(move_sound)
 
-        play_sound(
-            move_sound
-        )
-
-
-# ============================================================
-# OBSTACLE MOVEMENT
-# ============================================================
-
-
-def move_obstacles(dt):
-    """
-    Moves obstacles downward.
-    """
-
-    obstacle_speed, _, _ = get_difficulty()
-
-    for pattern in patterns:
-
-        for obstacle in pattern["rects"]:
-
-            obstacle.y += int(
-                obstacle_speed
-                * dt
-            )
-
-
-# ============================================================
-# ROAD ANIMATION
-# ============================================================
-
-
-def update_road_animation(dt):
-    """
-    Moves road markings downward.
-    """
-
-    global road_line_offset
-
-    obstacle_speed, _, _ = get_difficulty()
-
-    road_line_speed = (
-        obstacle_speed
-        * ROAD_LINE_SPEED_MULTIPLIER
-    )
-
-    road_line_offset += (
-        road_line_speed
-        * dt
-    )
-
-    line_spacing = (
-        ROAD_LINE_HEIGHT
-        + ROAD_LINE_GAP
-    )
-
-    if road_line_offset >= line_spacing:
-
-        road_line_offset -= line_spacing
-
-
-# ============================================================
-# COLLISION
-# ============================================================
-
-
-def check_collisions():
-    """
-    Checks player-obstacle collision.
-    """
-
-    global game_state
-
-    player_rect = pygame.Rect(
-        int(player_x + 8),
-        PLAYER_Y + 5,
-        PLAYER_WIDTH - 16,
-        PLAYER_HEIGHT - 10
-    )
-
-    for pattern in patterns:
-
-        for obstacle in pattern["rects"]:
-
-            if player_rect.colliderect(
-                obstacle
-            ):
-
-                play_sound(
-                    collision_sound
-                )
-
-                game_state = GAME_OVER
-
-                return
-
-
-# ============================================================
-# SCORE
-# ============================================================
-
-
-def update_score():
-    """
-    Gives one point per successfully
-    passed obstacle pattern.
-    """
-
-    global score
-    global high_score
-
-    player_bottom = (
-        PLAYER_Y
-        + PLAYER_HEIGHT
-    )
-
-    for pattern in patterns:
-
-        if pattern["scored"]:
-            continue
-
-        first_obstacle = (
-            pattern["rects"][0]
-        )
-
-        if first_obstacle.top > player_bottom:
-
-            pattern["scored"] = True
-
-            score += 1
-
-            play_sound(
-                score_sound
-            )
-
-            if score > high_score:
-
-                high_score = score
-
-
-# ============================================================
-# REMOVE OLD OBSTACLES
-# ============================================================
-
-
-def remove_old_patterns():
-    """
-    Removes obstacles after they leave
-    the screen.
-    """
-
-    patterns_to_remove = []
-
-    for pattern in patterns:
-
-        if all(
-            obstacle.top > HEIGHT
-            for obstacle in pattern["rects"]
-        ):
-
-            patterns_to_remove.append(
-                pattern
-            )
-
-    for pattern in patterns_to_remove:
-
-        patterns.remove(
-            pattern
+        # Lane change particles
+        spawn_particles(
+            player_x,
+            player_y + PLAYER_HEIGHT * 0.4,
+            10,
+            CYAN,
+            speed_min=40,
+            speed_max=140,
+            size_min=2,
+            size_max=5,
+            life_min=0.2,
+            life_max=0.45,
         )
 
 
 # ============================================================
-# RESET GAME
+# PLAYER RECT
 # ============================================================
 
 
-def reset_game():
-    """
-    Resets current run.
-    """
+def get_player_rect():
 
-    global player_lane
-    global player_x
-    global target_x
-    global obstacle_timer
-    global score
-    global road_line_offset
-
-    player_lane = MIDDLE
-
-    player_x = get_player_x(
-        MIDDLE
-    )
-
-    target_x = player_x
-
-    obstacle_timer = 0
-
-    score = 0
-
-    road_line_offset = 0
-
-    patterns.clear()
-
-
-def start_countdown():
-    """
-    Starts a new game.
-    """
-
-    global game_state
-    global countdown_time
-    global countdown_number
-    global last_countdown_number
-
-    reset_game()
-
-    game_state = COUNTDOWN
-
-    countdown_time = 0
-
-    countdown_number = 3
-
-    last_countdown_number = 3
-
-    play_sound(
-        countdown_sound
+    return pygame.Rect(
+        int(player_x - PLAYER_WIDTH / 2),
+        int(player_y - PLAYER_HEIGHT / 2),
+        PLAYER_WIDTH,
+        PLAYER_HEIGHT,
     )
 
 
@@ -825,84 +654,74 @@ def start_countdown():
 # ============================================================
 
 
-def draw_road():
-    """
-    Draws road and moving lane markings.
-    """
+def draw_road(offset_x=0, offset_y=0):
+
+    road_rect = pygame.Rect(
+        ROAD_LEFT + int(offset_x),
+        int(offset_y),
+        ROAD_RIGHT - ROAD_LEFT,
+        HEIGHT,
+    )
 
     pygame.draw.rect(
         screen,
         ROAD_COLOR,
-        (
-            ROAD_X,
-            ROAD_Y,
-            ROAD_WIDTH,
-            ROAD_HEIGHT
-        )
+        road_rect,
     )
 
     # Road edges
     pygame.draw.line(
         screen,
-        ROAD_EDGE_COLOR,
+        ROAD_EDGE,
         (
-            ROAD_X,
-            ROAD_Y
+            ROAD_LEFT + int(offset_x),
+            int(offset_y),
         ),
         (
-            ROAD_X,
-            ROAD_Y + ROAD_HEIGHT
+            ROAD_LEFT + int(offset_x),
+            HEIGHT + int(offset_y),
         ),
-        6
+        6,
     )
 
     pygame.draw.line(
         screen,
-        ROAD_EDGE_COLOR,
+        ROAD_EDGE,
         (
-            ROAD_X + ROAD_WIDTH,
-            ROAD_Y
+            ROAD_RIGHT + int(offset_x),
+            int(offset_y),
         ),
         (
-            ROAD_X + ROAD_WIDTH,
-            ROAD_Y + ROAD_HEIGHT
+            ROAD_RIGHT + int(offset_x),
+            HEIGHT + int(offset_y),
         ),
-        6
+        6,
     )
 
-    # Lane markings
-    line_spacing = (
-        ROAD_LINE_HEIGHT
-        + ROAD_LINE_GAP
-    )
+    # Lane divider animation
+    dash_height = 45
+    gap = 35
 
-    y = (
-        ROAD_Y
-        - line_spacing
-        + road_line_offset
-    )
+    y = -100 + road_line_offset
 
-    while y < ROAD_Y + ROAD_HEIGHT:
+    while y < HEIGHT + 100:
 
         for divider in [1, 2]:
 
-            x = (
-                ROAD_X
-                + divider * LANE_WIDTH
-            )
+            x = ROAD_LEFT + LANE_WIDTH * divider
 
             pygame.draw.rect(
                 screen,
-                LANE_LINE_COLOR,
-                (
-                    x - 3,
-                    int(y),
-                    6,
-                    ROAD_LINE_HEIGHT
-                )
+                (80, 85, 95),
+                pygame.Rect(
+                    int(x + offset_x - 2),
+                    int(y + offset_y),
+                    4,
+                    dash_height,
+                ),
             )
 
-        y += line_spacing
+        y += dash_height + gap
 
 
 # ============================================================
@@ -910,670 +729,825 @@ def draw_road():
 # ============================================================
 
 
-def draw_player():
-    """
-    Draws the futuristic player vehicle.
-    """
+def draw_player(offset_x=0, offset_y=0):
 
-    x = int(player_x)
-    y = PLAYER_Y
+    rect = get_player_rect()
 
-    # Shadow
-    shadow = pygame.Rect(
-        x + 5,
-        y + 12,
-        PLAYER_WIDTH,
-        PLAYER_HEIGHT
-    )
-
-    pygame.draw.ellipse(
-        screen,
-        (8, 9, 12),
-        shadow
-    )
+    rect.x += int(offset_x)
+    rect.y += int(offset_y)
 
     # Glow
-    glow = pygame.Rect(
-        x - 10,
-        y - 10,
-        PLAYER_WIDTH + 20,
-        PLAYER_HEIGHT + 20
-    )
+    glow_rect = rect.inflate(25, 25)
 
     pygame.draw.rect(
         screen,
-        PLAYER_GLOW,
-        glow,
-        border_radius=18
+        (0, 100, 120),
+        glow_rect,
+        border_radius=15,
     )
 
     # Main body
-    body = pygame.Rect(
-        x,
-        y,
-        PLAYER_WIDTH,
-        PLAYER_HEIGHT
+    pygame.draw.rect(
+        screen,
+        CYAN,
+        rect,
+        border_radius=12,
     )
+
+    # Inner body
+    inner = rect.inflate(-10, -10)
 
     pygame.draw.rect(
         screen,
-        PLAYER_DARK,
-        body,
-        border_radius=15
-    )
-
-    inner_body = pygame.Rect(
-        x + 6,
-        y + 5,
-        PLAYER_WIDTH - 12,
-        PLAYER_HEIGHT - 10
-    )
-
-    pygame.draw.rect(
-        screen,
-        PLAYER_COLOR,
-        inner_body,
-        border_radius=12
+        (20, 80, 95),
+        inner,
+        border_radius=8,
     )
 
     # Windshield
     windshield = pygame.Rect(
-        x + 16,
-        y + 17,
-        PLAYER_WIDTH - 32,
-        28
+        rect.x + 12,
+        rect.y + 18,
+        rect.width - 24,
+        28,
     )
 
     pygame.draw.rect(
         screen,
-        WINDOW_COLOR,
+        (10, 30, 40),
         windshield,
-        border_radius=8
-    )
-
-    pygame.draw.line(
-        screen,
-        (80, 180, 210),
-        (
-            x + 23,
-            y + 23
-        ),
-        (
-            x + PLAYER_WIDTH - 23,
-            y + 23
-        ),
-        3
-    )
-
-    # Center line
-    pygame.draw.line(
-        screen,
-        PLAYER_DARK,
-        (
-            x + PLAYER_WIDTH // 2,
-            y + 48
-        ),
-        (
-            x + PLAYER_WIDTH // 2,
-            y + 85
-        ),
-        4
+        border_radius=6,
     )
 
     # Wheels
-    wheel_positions = [
+    wheel_width = 8
+    wheel_height = 24
+
+    pygame.draw.rect(
+        screen,
+        BLACK,
         (
-            x - 5,
-            y + 20
+            rect.left - 4,
+            rect.y + 20,
+            wheel_width,
+            wheel_height,
         ),
+        border_radius=3,
+    )
+
+    pygame.draw.rect(
+        screen,
+        BLACK,
         (
-            x + PLAYER_WIDTH - 3,
-            y + 20
+            rect.right - 4,
+            rect.y + 20,
+            wheel_width,
+            wheel_height,
         ),
+        border_radius=3,
+    )
+
+    pygame.draw.rect(
+        screen,
+        BLACK,
         (
-            x - 5,
-            y + 68
+            rect.left - 4,
+            rect.bottom - 44,
+            wheel_width,
+            wheel_height,
         ),
-        (
-            x + PLAYER_WIDTH - 3,
-            y + 68
-        )
-    ]
+        border_radius=3,
+    )
 
-    for wheel_x, wheel_y in wheel_positions:
-
-        pygame.draw.rect(
-            screen,
-            WHEEL_COLOR,
-            (
-                wheel_x,
-                wheel_y,
-                10,
-                22
-            ),
-            border_radius=4
-        )
-
-    # Front lights
     pygame.draw.rect(
         screen,
-        WHITE,
+        BLACK,
         (
-            x + 10,
-            y + 7,
-            16,
-            7
+            rect.right - 4,
+            rect.bottom - 44,
+            wheel_width,
+            wheel_height,
         ),
-        border_radius=3
+        border_radius=3,
     )
 
-    pygame.draw.rect(
-        screen,
-        WHITE,
-        (
-            x + PLAYER_WIDTH - 26,
-            y + 7,
-            16,
-            7
-        ),
-        border_radius=3
-    )
-
-
-# ============================================================
-# DRAW OBSTACLE
-# ============================================================
-
-
-def draw_single_obstacle(obstacle):
-    """
-    Draws one road barrier.
-    """
-
-    x = obstacle.x
-    y = obstacle.y
-
-    # Shadow
-    shadow = pygame.Rect(
-        x + 6,
-        y + 10,
-        OBSTACLE_WIDTH,
-        OBSTACLE_HEIGHT
-    )
-
-    pygame.draw.ellipse(
-        screen,
-        (8, 9, 12),
-        shadow
-    )
-
-    # Glow
-    glow = obstacle.inflate(
-        12,
-        12
-    )
-
-    pygame.draw.rect(
-        screen,
-        OBSTACLE_GLOW,
-        glow,
-        border_radius=10
-    )
-
-    # Main body
-    pygame.draw.rect(
-        screen,
-        OBSTACLE_DARK,
-        obstacle,
-        border_radius=10
-    )
-
-    inner = pygame.Rect(
-        x + 5,
-        y + 5,
-        OBSTACLE_WIDTH - 10,
-        OBSTACLE_HEIGHT - 10
-    )
-
-    pygame.draw.rect(
-        screen,
-        OBSTACLE_COLOR,
-        inner,
-        border_radius=7
-    )
-
-    # Warning stripes
-    stripe_width = 16
-
-    for stripe_x in range(
-        x - 10,
-        x + OBSTACLE_WIDTH + 20,
-        stripe_width * 2
-    ):
-
-        pygame.draw.polygon(
-            screen,
-            WARNING_COLOR,
-            [
-                (
-                    stripe_x,
-                    y + OBSTACLE_HEIGHT
-                ),
-                (
-                    stripe_x + stripe_width,
-                    y + OBSTACLE_HEIGHT
-                ),
-                (
-                    stripe_x + stripe_width + 18,
-                    y
-                ),
-                (
-                    stripe_x + 18,
-                    y
-                )
-            ]
-        )
-
-    # Warning panel
-    panel = pygame.Rect(
-        x + 18,
-        y + 25,
-        OBSTACLE_WIDTH - 36,
-        35
-    )
-
-    pygame.draw.rect(
-        screen,
-        OBSTACLE_DARK,
-        panel,
-        border_radius=5
-    )
-
-    # Warning lights
+    # Lights
     pygame.draw.circle(
         screen,
-        WARNING_COLOR,
+        YELLOW,
         (
-            x + 30,
-            y + 43
+            rect.centerx - 18,
+            rect.bottom - 12,
         ),
-        5
+        5,
     )
 
     pygame.draw.circle(
         screen,
-        WARNING_COLOR,
+        YELLOW,
         (
-            x + OBSTACLE_WIDTH - 30,
-            y + 43
+            rect.centerx + 18,
+            rect.bottom - 12,
         ),
-        5
+        5,
     )
 
 
-def draw_obstacles():
-    """
-    Draws all obstacle patterns.
-    """
+# ============================================================
+# DRAW OBSTACLES
+# ============================================================
+
+
+def draw_obstacles(offset_x=0, offset_y=0):
 
     for pattern in patterns:
 
-        for obstacle in pattern["rects"]:
+        for rect in pattern["rects"]:
 
-            draw_single_obstacle(
-                obstacle
+            draw_rect = rect.copy()
+
+            draw_rect.x += int(offset_x)
+            draw_rect.y += int(offset_y)
+
+            # Glow
+            glow = draw_rect.inflate(10, 10)
+
+            pygame.draw.rect(
+                screen,
+                (100, 35, 30),
+                glow,
+                border_radius=6,
+            )
+
+            # Main barrier
+            pygame.draw.rect(
+                screen,
+                RED,
+                draw_rect,
+                border_radius=6,
+            )
+
+            # Warning stripes
+            stripe_width = 18
+
+            for x in range(
+                draw_rect.left,
+                draw_rect.right,
+                stripe_width * 2,
+            ):
+
+                points = [
+                    (x, draw_rect.bottom),
+                    (x + stripe_width, draw_rect.bottom),
+                    (x + stripe_width + 10, draw_rect.top),
+                    (x + 10, draw_rect.top),
+                ]
+
+                pygame.draw.polygon(
+                    screen,
+                    YELLOW,
+                    points,
+                )
+
+            # Center panel
+            panel = draw_rect.inflate(-20, -20)
+
+            pygame.draw.rect(
+                screen,
+                DARK_RED,
+                panel,
+                border_radius=4,
+            )
+
+            # Warning lights
+            pygame.draw.circle(
+                screen,
+                YELLOW,
+                (
+                    draw_rect.left + 14,
+                    draw_rect.centery,
+                ),
+                5,
+            )
+
+            pygame.draw.circle(
+                screen,
+                YELLOW,
+                (
+                    draw_rect.right - 14,
+                    draw_rect.centery,
+                ),
+                5,
             )
 
 
 # ============================================================
-# HUD
+# DRAW HUD
 # ============================================================
 
 
 def draw_hud():
-    """
-    Draws score and level.
-    """
-
-    _, _, level = get_difficulty()
-
-    # Score panel
-    score_panel = pygame.Rect(
-        20,
-        18,
-        190,
-        60
-    )
-
-    pygame.draw.rect(
-        screen,
-        (20, 23, 30),
-        score_panel,
-        border_radius=12
-    )
-
-    pygame.draw.rect(
-        screen,
-        PLAYER_DARK,
-        score_panel,
-        2,
-        border_radius=12
-    )
 
     score_text = font_medium.render(
         f"SCORE  {score}",
         True,
-        WHITE
+        WHITE,
     )
 
     screen.blit(
         score_text,
-        (
-            35,
-            32
-        )
-    )
-
-    # Level panel
-    level_panel = pygame.Rect(
-        WIDTH - 150,
-        18,
-        130,
-        60
-    )
-
-    pygame.draw.rect(
-        screen,
-        (20, 23, 30),
-        level_panel,
-        border_radius=12
+        (25, 20),
     )
 
     level_text = font_small.render(
-        f"LEVEL {level}",
+        f"LEVEL  {current_level}",
         True,
-        GREY
+        CYAN,
     )
 
     screen.blit(
         level_text,
-        level_text.get_rect(
-            center=level_panel.center
-        )
+        (25, 65),
     )
 
 
 # ============================================================
-# MENU
+# DRAW MENU
 # ============================================================
 
 
 def draw_menu():
-    """
-    Draws main menu.
-    """
 
-    screen.fill(
-        BACKGROUND
-    )
+    screen.fill(BLACK)
 
     title = font_title.render(
         "SHIFT",
         True,
-        PLAYER_COLOR
+        CYAN,
     )
 
-    screen.blit(
-        title,
-        title.get_rect(
-            center=(
-                WIDTH // 2,
-                170
-            )
-        )
+    title_rect = title.get_rect(
+        center=(WIDTH // 2, 190)
     )
+
+    screen.blit(title, title_rect)
 
     subtitle = font_medium.render(
-        "DODGE. SURVIVE. SHIFT.",
+        "DODGE. SHIFT. SURVIVE.",
         True,
-        WHITE
+        WHITE,
+    )
+
+    subtitle_rect = subtitle.get_rect(
+        center=(WIDTH // 2, 280)
+    )
+
+    screen.blit(subtitle, subtitle_rect)
+
+    instruction = font_small.render(
+        "Press SPACE to start",
+        True,
+        GREY,
+    )
+
+    instruction_rect = instruction.get_rect(
+        center=(WIDTH // 2, 370)
     )
 
     screen.blit(
-        subtitle,
-        subtitle.get_rect(
-            center=(
-                WIDTH // 2,
-                270
-            )
-        )
+        instruction,
+        instruction_rect,
     )
 
     controls = font_small.render(
-        "A / D   or   LEFT / RIGHT",
+        "LEFT / RIGHT  or  A / D",
         True,
-        GREY
+        GREY,
+    )
+
+    controls_rect = controls.get_rect(
+        center=(WIDTH // 2, 420)
     )
 
     screen.blit(
         controls,
-        controls.get_rect(
-            center=(
-                WIDTH // 2,
-                350
-            )
-        )
+        controls_rect,
     )
 
-    start_box = pygame.Rect(
-        WIDTH // 2 - 180,
-        420,
-        360,
-        65
-    )
-
-    pygame.draw.rect(
-        screen,
-        PLAYER_DARK,
-        start_box,
-        border_radius=14
-    )
-
-    start_text = font_medium.render(
-        "PRESS SPACE TO START",
-        True,
-        WHITE
-    )
-
-    screen.blit(
-        start_text,
-        start_text.get_rect(
-            center=start_box.center
-        )
-    )
-
-    best_text = font_small.render(
+    best = font_small.render(
         f"BEST SCORE: {high_score}",
         True,
-        GREY
+        YELLOW,
+    )
+
+    best_rect = best.get_rect(
+        center=(WIDTH // 2, 500)
     )
 
     screen.blit(
-        best_text,
-        best_text.get_rect(
-            center=(
-                WIDTH // 2,
-                530
-            )
-        )
+        best,
+        best_rect,
     )
 
 
 # ============================================================
-# COUNTDOWN
+# DRAW COUNTDOWN
 # ============================================================
 
 
 def draw_countdown():
-    """
-    Draws countdown screen.
-    """
 
-    screen.fill(
-        BACKGROUND
-    )
-
+    # Draw game world behind countdown
     draw_road()
-
     draw_obstacles()
-
     draw_player()
+    draw_particles()
+    draw_hud()
 
     overlay = pygame.Surface(
         (WIDTH, HEIGHT),
-        pygame.SRCALPHA
+        pygame.SRCALPHA,
     )
 
-    overlay.fill(
-        (0, 0, 0, 120)
-    )
+    overlay.fill((0, 0, 0, 90))
 
     screen.blit(
         overlay,
-        (0, 0)
+        (0, 0),
     )
 
-    number_text = font_huge.render(
+    number = font_title.render(
         str(countdown_number),
         True,
-        WHITE
+        CYAN,
+    )
+
+    rect = number.get_rect(
+        center=(WIDTH // 2, HEIGHT // 2)
     )
 
     screen.blit(
-        number_text,
-        number_text.get_rect(
-            center=(
-                WIDTH // 2,
-                HEIGHT // 2
-            )
-        )
+        number,
+        rect,
     )
 
 
 # ============================================================
-# GAME OVER
+# DRAW GAME OVER
 # ============================================================
 
 
-def draw_game_over():
-    """
-    Draws Game Over screen.
-    """
+def draw_game_over(offset_x=0, offset_y=0):
+
+    # Game world remains visible behind the overlay
+    draw_road(offset_x, offset_y)
+    draw_obstacles(offset_x, offset_y)
+    draw_particles(offset_x, offset_y)
+    draw_player(offset_x, offset_y)
 
     overlay = pygame.Surface(
         (WIDTH, HEIGHT),
-        pygame.SRCALPHA
+        pygame.SRCALPHA,
     )
 
-    overlay.fill(
-        (0, 0, 0, 185)
-    )
+    overlay.fill((0, 0, 0, 160))
 
     screen.blit(
         overlay,
-        (0, 0)
+        (0, 0),
     )
 
-    game_over_text = font_large.render(
+    title = font_large.render(
         "GAME OVER",
         True,
-        WHITE
+        RED,
+    )
+
+    title_rect = title.get_rect(
+        center=(WIDTH // 2, 240)
+    )
+
+    screen.blit(
+        title,
+        title_rect,
     )
 
     score_text = font_medium.render(
         f"SCORE: {score}",
         True,
-        WHITE
+        WHITE,
     )
 
-    best_text = font_medium.render(
-        f"BEST: {high_score}",
-        True,
-        PLAYER_COLOR
-    )
-
-    restart_text = font_small.render(
-        "R  →  RESTART",
-        True,
-        GREY
-    )
-
-    menu_text = font_small.render(
-        "ESC  →  MENU",
-        True,
-        GREY
-    )
-
-    screen.blit(
-        game_over_text,
-        game_over_text.get_rect(
-            center=(
-                WIDTH // 2,
-                250
-            )
-        )
+    score_rect = score_text.get_rect(
+        center=(WIDTH // 2, 320)
     )
 
     screen.blit(
         score_text,
-        score_text.get_rect(
-            center=(
-                WIDTH // 2,
-                325
-            )
-        )
+        score_rect,
+    )
+
+    best_text = font_small.render(
+        f"BEST: {high_score}",
+        True,
+        YELLOW,
+    )
+
+    best_rect = best_text.get_rect(
+        center=(WIDTH // 2, 370)
     )
 
     screen.blit(
         best_text,
-        best_text.get_rect(
-            center=(
-                WIDTH // 2,
-                370
-            )
-        )
+        best_rect,
+    )
+
+    restart = font_small.render(
+        "Press R to restart",
+        True,
+        GREY,
+    )
+
+    restart_rect = restart.get_rect(
+        center=(WIDTH // 2, 450)
     )
 
     screen.blit(
-        restart_text,
-        restart_text.get_rect(
-            center=(
-                WIDTH // 2,
-                435
-            )
-        )
+        restart,
+        restart_rect,
+    )
+
+    menu_text = font_small.render(
+        "Press ESC for menu",
+        True,
+        GREY,
+    )
+
+    menu_rect = menu_text.get_rect(
+        center=(WIDTH // 2, 490)
     )
 
     screen.blit(
         menu_text,
-        menu_text.get_rect(
-            center=(
-                WIDTH // 2,
-                475
-            )
-        )
+        menu_rect,
     )
 
 
 # ============================================================
-# INITIAL POSITION
+# RESET GAME
 # ============================================================
 
-player_x = get_player_x(
-    MIDDLE
-)
 
-target_x = player_x
+def reset_game():
+
+    global player_lane
+    global player_x
+    global target_x
+
+    global score
+
+    global patterns
+
+    global spawn_timer
+
+    global road_line_offset
+
+    global screen_shake_time
+    global screen_shake_strength
+
+    global impact_flash
+
+    player_lane = MIDDLE
+
+    player_x = LANE_CENTERS[MIDDLE]
+
+    target_x = player_x
+
+    score = 0
+
+    patterns = []
+
+    spawn_timer = 0
+
+    road_line_offset = 0
+
+    screen_shake_time = 0
+    screen_shake_strength = 0
+
+    impact_flash = 0
+
+    particles.clear()
+    score_popups.clear()
+
+    update_difficulty()
+
+
+# ============================================================
+# START GAME
+# ============================================================
+
+
+def start_game():
+
+    global game_state
+    global countdown_timer
+    global countdown_number
+
+    reset_game()
+
+    game_state = COUNTDOWN
+
+    countdown_timer = 0
+    countdown_number = 3
+
+    play_sound(countdown_sound)
+
+
+# ============================================================
+# COLLISION EFFECT
+# ============================================================
+
+
+def trigger_collision():
+
+    global game_state
+    global high_score
+    global impact_flash
+
+    # Prevent duplicate collision handling
+    if game_state != PLAYING:
+        return
+
+    game_state = GAME_OVER
+
+    if score > high_score:
+        high_score = score
+
+    play_sound(collision_sound)
+
+    # Screen shake
+    trigger_screen_shake(
+        duration=1.0,
+        strength=18,
+    )
+
+    # Red impact flash
+    impact_flash = 255
+
+    # Big explosion
+    spawn_particles(
+        player_x,
+        player_y,
+        70,
+        RED,
+        speed_min=80,
+        speed_max=450,
+        size_min=3,
+        size_max=10,
+        life_min=0.4,
+        life_max=1.1,
+        gravity=350,
+    )
+
+    spawn_particles(
+        player_x,
+        player_y,
+        40,
+        ORANGE,
+        speed_min=100,
+        speed_max=500,
+        size_min=2,
+        size_max=8,
+        life_min=0.3,
+        life_max=0.9,
+        gravity=300,
+    )
+
+    spawn_particles(
+        player_x,
+        player_y,
+        20,
+        YELLOW,
+        speed_min=50,
+        speed_max=300,
+        size_min=2,
+        size_max=6,
+        life_min=0.3,
+        life_max=0.8,
+        gravity=200,
+    )
+
+
+# ============================================================
+# UPDATE GAME
+# ============================================================
+
+
+def update_playing(dt):
+
+    global player_x
+    global spawn_timer
+    global road_line_offset
+    global score
+    global game_state
+
+    # --------------------------------------------------------
+    # Smooth player movement
+    # --------------------------------------------------------
+
+    difference = target_x - player_x
+
+    if abs(difference) > 1:
+
+        movement = PLAYER_MOVE_SPEED * dt
+
+        if abs(difference) < movement:
+            player_x = target_x
+        else:
+            player_x += math.copysign(
+                movement,
+                difference,
+            )
+
+    # --------------------------------------------------------
+    # Road movement
+    # --------------------------------------------------------
+
+    road_line_offset += obstacle_speed * dt
+
+    if road_line_offset > 80:
+        road_line_offset -= 80
+
+    # --------------------------------------------------------
+    # Spawn obstacles
+    # --------------------------------------------------------
+
+    spawn_timer += dt
+
+    if spawn_timer >= spawn_interval:
+
+        spawn_timer = 0
+
+        spawn_pattern()
+
+    # --------------------------------------------------------
+    # Move obstacle patterns
+    # --------------------------------------------------------
+
+    for pattern in patterns:
+
+        for rect in pattern["rects"]:
+
+            rect.y += obstacle_speed * dt
+
+    # --------------------------------------------------------
+    # Collision detection
+    # --------------------------------------------------------
+
+    player_rect = get_player_rect()
+
+    for pattern in patterns:
+
+        for rect in pattern["rects"]:
+
+            if player_rect.colliderect(rect):
+
+                trigger_collision()
+
+                return
+
+    # --------------------------------------------------------
+    # Score when complete pattern passes player
+    # --------------------------------------------------------
+
+    for pattern in patterns:
+
+        if pattern["scored"]:
+            continue
+
+        highest_bottom = max(
+            rect.bottom
+            for rect in pattern["rects"]
+        )
+
+        if highest_bottom > player_y + PLAYER_HEIGHT / 2:
+
+            pattern["scored"] = True
+
+            score += 1
+
+            update_difficulty()
+
+            play_sound(score_sound)
+
+            # Score particles
+            spawn_particles(
+                player_x,
+                player_y - 55,
+                18,
+                YELLOW,
+                speed_min=30,
+                speed_max=160,
+                size_min=2,
+                size_max=6,
+                life_min=0.3,
+                life_max=0.7,
+                gravity=-80,
+            )
+
+            # Floating +1
+            create_score_popup(
+                player_x,
+                player_y - 70,
+            )
+
+    # --------------------------------------------------------
+    # Remove old patterns
+    # --------------------------------------------------------
+
+    for pattern in patterns[:]:
+
+        if all(
+            rect.top > HEIGHT + 100
+            for rect in pattern["rects"]
+        ):
+
+            patterns.remove(pattern)
+
+
+# ============================================================
+# UPDATE COUNTDOWN
+# ============================================================
+
+
+def update_countdown(dt):
+
+    global countdown_timer
+    global countdown_number
+    global game_state
+
+    countdown_timer += dt
+
+    if countdown_timer >= 1:
+
+        countdown_timer = 0
+
+        countdown_number -= 1
+
+        if countdown_number > 0:
+
+            play_sound(countdown_sound)
+
+        else:
+
+            game_state = PLAYING
+
+            play_sound(start_sound)
+
+            # Small starting particle burst
+            spawn_particles(
+                player_x,
+                player_y + 50,
+                20,
+                CYAN,
+                speed_min=40,
+                speed_max=180,
+                size_min=2,
+                size_max=5,
+                life_min=0.2,
+                life_max=0.5,
+            )
+
+
+# ============================================================
+# UPDATE EFFECTS
+# ============================================================
+
+
+def update_effects(dt):
+
+    global screen_shake_time
+    global impact_flash
+
+    update_particles(dt)
+    update_score_popups(dt)
+
+    # Screen shake timer
+    if screen_shake_time > 0:
+
+        screen_shake_time -= dt
+
+        if screen_shake_time < 0:
+            screen_shake_time = 0
+
+    # Impact flash
+    if impact_flash > 0:
+
+        impact_flash -= 700 * dt
+
+        if impact_flash < 0:
+            impact_flash = 0
+
 
 # ============================================================
 # MAIN LOOP
@@ -1584,6 +1558,9 @@ running = True
 while running:
 
     dt = clock.tick(60) / 1000.0
+
+    # Prevent giant jumps if the window freezes
+    dt = min(dt, 0.05)
 
     # ========================================================
     # EVENTS
@@ -1605,7 +1582,7 @@ while running:
 
                 if event.key == pygame.K_SPACE:
 
-                    start_countdown()
+                    start_game()
 
             # ------------------------------------------------
             # COUNTDOWN
@@ -1613,7 +1590,9 @@ while running:
 
             elif game_state == COUNTDOWN:
 
-                pass
+                if event.key == pygame.K_ESCAPE:
+
+                    game_state = MENU
 
             # ------------------------------------------------
             # PLAYING
@@ -1623,14 +1602,14 @@ while running:
 
                 if event.key in (
                     pygame.K_LEFT,
-                    pygame.K_a
+                    pygame.K_a,
                 ):
 
                     move_left()
 
                 elif event.key in (
                     pygame.K_RIGHT,
-                    pygame.K_d
+                    pygame.K_d,
                 ):
 
                     move_right()
@@ -1638,8 +1617,6 @@ while running:
                 elif event.key == pygame.K_ESCAPE:
 
                     game_state = MENU
-
-                    patterns.clear()
 
             # ------------------------------------------------
             # GAME OVER
@@ -1649,73 +1626,31 @@ while running:
 
                 if event.key == pygame.K_r:
 
-                    start_countdown()
+                    start_game()
 
                 elif event.key == pygame.K_ESCAPE:
 
                     game_state = MENU
 
-                    patterns.clear()
-
     # ========================================================
-    # COUNTDOWN UPDATE
+    # UPDATE
     # ========================================================
 
     if game_state == COUNTDOWN:
 
-        countdown_time += dt
-
-        if countdown_time < 1:
-
-            countdown_number = 3
-
-        elif countdown_time < 2:
-
-            countdown_number = 2
-
-        elif countdown_time < 3:
-
-            countdown_number = 1
-
-        else:
-
-            game_state = PLAYING
-
-            obstacle_timer = 0
-
-            play_sound(
-                start_sound
-            )
-
-    # ========================================================
-    # PLAYING UPDATE
-    # ========================================================
+        update_countdown(dt)
 
     elif game_state == PLAYING:
 
-        move_player(dt)
+        update_playing(dt)
 
-        update_road_animation(dt)
+    update_effects(dt)
 
-        _, spawn_interval, _ = get_difficulty()
+    # ========================================================
+    # SCREEN SHAKE
+    # ========================================================
 
-        obstacle_timer += dt
-
-        if obstacle_timer >= spawn_interval:
-
-            obstacle_timer = 0
-
-            spawn_pattern()
-
-        move_obstacles(dt)
-
-        check_collisions()
-
-        if game_state == PLAYING:
-
-            update_score()
-
-        remove_old_patterns()
+    offset_x, offset_y = get_screen_shake()
 
     # ========================================================
     # DRAW
@@ -1725,68 +1660,65 @@ while running:
 
         draw_menu()
 
-    else:
+    elif game_state == COUNTDOWN:
 
-        screen.fill(
-            BACKGROUND
+        draw_countdown()
+
+    elif game_state == PLAYING:
+
+        screen.fill(BLACK)
+
+        draw_road(offset_x, offset_y)
+
+        draw_obstacles(offset_x, offset_y)
+
+        draw_particles(offset_x, offset_y)
+
+        draw_player(offset_x, offset_y)
+
+        draw_score_popups(offset_x, offset_y)
+
+        draw_hud()
+
+    elif game_state == GAME_OVER:
+
+        screen.fill(BLACK)
+
+        draw_game_over(
+            offset_x,
+            offset_y,
         )
 
-        draw_road()
+        draw_score_popups(
+            offset_x,
+            offset_y,
+        )
 
-        draw_obstacles()
+    # ========================================================
+    # IMPACT FLASH
+    # ========================================================
 
-        draw_player()
+    if impact_flash > 0:
 
-        if game_state in (
-            PLAYING,
-            GAME_OVER
-        ):
+        flash = pygame.Surface(
+            (WIDTH, HEIGHT),
+            pygame.SRCALPHA,
+        )
 
-            draw_hud()
+        alpha = int(
+            min(255, impact_flash)
+        )
 
-        if game_state == COUNTDOWN:
+        flash.fill(
+            (255, 30, 30, alpha)
+        )
 
-            overlay = pygame.Surface(
-                (WIDTH, HEIGHT),
-                pygame.SRCALPHA
-            )
-
-            overlay.fill(
-                (0, 0, 0, 100)
-            )
-
-            screen.blit(
-                overlay,
-                (0, 0)
-            )
-
-            number_text = font_huge.render(
-                str(countdown_number),
-                True,
-                WHITE
-            )
-
-            screen.blit(
-                number_text,
-                number_text.get_rect(
-                    center=(
-                        WIDTH // 2,
-                        HEIGHT // 2
-                    )
-                )
-            )
-
-        elif game_state == GAME_OVER:
-
-            draw_game_over()
+        screen.blit(
+            flash,
+            (0, 0),
+        )
 
     pygame.display.flip()
 
 
-# ============================================================
-# EXIT
-# ============================================================
-
 pygame.quit()
-
-sys.exit()
