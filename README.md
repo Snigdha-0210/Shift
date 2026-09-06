@@ -5,14 +5,14 @@
   <br/><br/>
 
   <h1>⚡ S H I F T</h1>
-  <p><strong>DODGE. SURVIVE. SHIFT.</strong></p>
+  <p><strong>DODGE. SHIFT. SURVIVE.</strong></p>
   <p><em>An adrenaline-fueled, cyberpunk-themed 3-lane reflex obstacle dodger built with Python and Pygame.</em></p>
 
   <p>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
     <a href="https://www.pygame.org/"><img src="https://img.shields.io/badge/Pygame-2.6.x-00D4B2?style=for-the-badge&logo=gamemaker&logoColor=white" alt="Pygame 2.6.x"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-00E5FF?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="MIT License"></a>
-    <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=for-the-badge" alt="Cross Platform">
+    <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-lightgrey?style=for-the-badge" alt="Cross Platform">
     <img src="https://img.shields.io/badge/FPS-60%20(Delta--Time)-FF0055?style=for-the-badge" alt="60 FPS">
   </p>
 
@@ -22,8 +22,8 @@
     <a href="#-controls--mechanics">Controls</a> •
     <a href="#-difficulty-progression">Difficulty Curve</a> •
     <a href="#-installation--quickstart">Installation</a> •
-    <a href="#-project-structure">Project Structure</a> •
-    <a href="#-roadmap">Roadmap</a>
+    <a href="#-deployment">Deployment</a> •
+    <a href="PROGRESS.md">Dev Progress Log</a>
   </p>
 
 </div>
@@ -32,9 +32,9 @@
 
 ## 🌌 Overview
 
-**SHIFT** places you in the cockpit of a glowing high-speed cyber-vehicle traveling down a futuristic neon transit corridor. Obstacles drop in increasingly rapid succession across three lanes. Your objective is pure reflex survival: switch lanes, avoid hazard barriers, navigate multi-lane barricades, and climb the high-score leaderboard.
+**SHIFT** places you in the cockpit of a glowing high-speed cyber-vehicle traversing an infinite neon speedway. Obstacles cascade in accelerating frequencies across three lanes. Your objective is pure reflex survival: switch lanes, avoid barricades, navigate multi-lane blockades, and climb the high-score leaderboard.
 
-Designed with **delta-time physics**, **procedural vector graphics**, and **fair spawning algorithms**, SHIFT delivers fluid, frame-rate-independent arcade action that scales dynamically with your performance.
+Designed with **delta-time physics**, **procedural sine-wave audio synthesis**, **particle physics**, and **fair spawning algorithms**, SHIFT delivers fluid, frame-rate-independent arcade action that scales dynamically with your score.
 
 <div align="center">
   <img src="assets/icon.jpg" alt="SHIFT Icon" width="180" style="border-radius: 20px; margin: 10px;" />
@@ -44,28 +44,34 @@ Designed with **delta-time physics**, **procedural vector graphics**, and **fair
 
 ## ✨ Key Features
 
-- 🏎️ **Continuous Smooth Interpolation**: Unlike rigid grid-snapping games, your vehicle transitions between lanes with continuous acceleration and velocity dampening (900 px/s).
-- 🧠 **Fair Spawning Heuristics**: The obstacle spawner inspects player position and enforces reachability constraints, guaranteeing every obstacle pattern has an achievable escape route.
-- 📈 **5-Tier Adaptive Difficulty Curve**: Speeds dynamically ramp up from 300 px/s to 500 px/s while spawn timers compress from 1.20s down to 0.70s alongside dual-obstacle barricade patterns.
-- 🎨 **Pure Procedural Neon Graphics**: 100% hardware-accelerated code rendering—glowing vehicle silhouettes, windshield reflections, hazard warning stripes, and animated road markers without third-party bitmap dependencies.
-- ⏱️ **Delta-Time Frame Independence**: Game physics and animations operate strictly on `dt` increments, ensuring identical game speed across diverse hardware monitors (60Hz, 144Hz, 240Hz).
-- 🏆 **Integrated Score & High-Score Tracking**: Real-time HUD scoring, automated high-score persistence during the session, and animated restart loops.
+- 🏎️ **Continuous Smooth Interpolation**: Smooth lane transitioning physics ($1200\text{ px/s}$) with responsive target dampening.
+- ⚙️ **Interactive Settings & Audio Toggle**: Full in-game Settings menu allowing you to toggle synthesized sound effects, inspect controls, and navigate menus.
+- 🧠 **Fair Spawning Heuristics & Pattern Memory**: Guarantees at least one open escape lane at all times while preventing repetitive patterns.
+- 📈 **Dynamic Difficulty Tiers (Levels 1–10)**: Real-time velocity acceleration from $300\text{ px/s}$ to $750\text{ px/s}$ with spawn intervals tightening down to $0.45\text{s}$.
+- 💥 **Visual Impact Feedback**: Directional camera screen shake, red impact flash overlay, and gravity-driven particle explosion bursts.
+- 🌌 **Atmospheric Starfield & Speed Lines**: 80 depth-scrolling background stars and 20 neon speed lines for high-velocity immersion.
+- 💾 **Disk High-Score Persistence**: Automatic session and disk high-score tracking via `highscore.txt`.
+- 🔌 **Hardware Controller Ready**: Abstracted input queue architecture with hooks for Arduino, ESP32, and Bluetooth hardware inputs.
 
 ---
 
 ## 📐 Game Architecture
 
-SHIFT is structured around a modular, deterministic state machine and game loop:
+SHIFT is built on a modular finite state machine:
 
 ### 1. State Machine Flow
 ```mermaid
 stateDiagram-v2
     [*] --> MENU
+    MENU --> SETTINGS : S Pressed
+    SETTINGS --> CONTROLS : CONTROLS Selected
+    CONTROLS --> SETTINGS : ESC Pressed
+    SETTINGS --> MENU : ESC or BACK Selected
     MENU --> COUNTDOWN : SPACE Pressed
     COUNTDOWN --> PLAYING : 3-Second Timer Finishes
     PLAYING --> GAME_OVER : Player-Obstacle Collision
     PLAYING --> MENU : ESC Pressed
-    GAME_OVER --> COUNTDOWN : R Pressed (Restart)
+    GAME_OVER --> COUNTDOWN : SPACE Pressed (Restart)
     GAME_OVER --> MENU : ESC Pressed
 ```
 
@@ -74,91 +80,56 @@ stateDiagram-v2
 sequenceDiagram
     autonumber
     actor Player
-    participant EventLoop as Pygame Event System
+    participant EventLoop as Input System & Hardware Buffer
     participant PhysicsEngine as Movement & Delta-Time
     participant Spawner as Fair Pattern Spawner
     participant CollisionSystem as Collision & Scorer
-    participant Renderer as Vector Render Pipeline
+    participant Renderer as Offscreen World & Shake Pipeline
 
-    Player->>EventLoop: Keyboard Inputs (A/D/Left/Right/Space/R/Esc)
-    EventLoop->>PhysicsEngine: Update Target Lane / State Transitions
-    PhysicsEngine->>PhysicsEngine: Move Player (Lerp px/s * dt)
-    PhysicsEngine->>PhysicsEngine: Update Animated Road Lane Offsets
-    PhysicsEngine->>PhysicsEngine: Move Obstacles Downward (Speed * dt)
-    Spawner->>Spawner: Check Spawn Interval & Generate Fair Patterns
-    CollisionSystem->>CollisionSystem: Calculate Inflated/Deflated Hitboxes
+    Player->>EventLoop: Keyboard / Hardware Input
+    EventLoop->>PhysicsEngine: Submit & Process Input Queue
+    PhysicsEngine->>PhysicsEngine: Lerp Player X (1200 px/s * dt)
+    PhysicsEngine->>PhysicsEngine: Update Starfield, Speed Lines & Obstacles
+    Spawner->>Spawner: Select Allowed Pattern (Level-Tiered)
+    CollisionSystem->>CollisionSystem: Evaluate Player-Obstacle Hitboxes
     alt Collision Detected
-        CollisionSystem->>Renderer: Trigger GAME_OVER State
-    else Passed Obstacle
-        CollisionSystem->>CollisionSystem: Increment Score & Update Best
+        CollisionSystem->>Renderer: Trigger Crash Particles, Shake & Flash
+        CollisionSystem->>EventLoop: Transition to GAME_OVER
+    else Obstacle Passed
+        CollisionSystem->>CollisionSystem: Increment Score, Level Up Check & Disk Save
     end
-    Renderer->>Renderer: Render Background, Road, Obstacles, Player, HUD
+    Renderer->>Renderer: Render World Surface -> Apply Screen Shake Offset -> Draw Flash
     Renderer-->>Player: Flip Frame Buffer (60 FPS)
 ```
 
 ---
 
-## 🎮 Controls & Mechanics
+## 🎮 Controls & Keybindings
 
 | Keybinding | Action | Context |
 | :--- | :--- | :--- |
 | <kbd>A</kbd> or <kbd>←</kbd> | **Shift Left** | In-Game (`PLAYING`) |
 | <kbd>D</kbd> or <kbd>→</kbd> | **Shift Right** | In-Game (`PLAYING`) |
-| <kbd>SPACE</kbd> | **Start Game / Launch Countdown** | Main Menu (`MENU`) |
-| <kbd>R</kbd> | **Quick Restart** | Game Over (`GAME_OVER`) |
-| <kbd>ESC</kbd> | **Return to Main Menu** | Playing / Game Over |
-
-### 🎯 Hitbox Precision Engineering
-To reward clutch maneuvers, the player vehicle uses an adjusted inner collision volume:
-- **Visual Vehicle Dimensions**: 80 × 100 px
-- **Collision Hitbox**: Centered (w - 16) px × (h - 10) px with edge tolerance, allowing pixel-tight evasions through dual barricades.
+| <kbd>SPACE</kbd> | **Start Game / Quick Restart** | Menu / Game Over |
+| <kbd>S</kbd> | **Open Settings** | Main Menu (`MENU`) |
+| <kbd>↑</kbd> / <kbd>↓</kbd> or <kbd>W</kbd> / <kbd>S</kbd> | **Navigate Settings** | Settings Menu (`SETTINGS`) |
+| <kbd>ENTER</kbd> | **Toggle Sound / Select Option** | Settings Menu (`SETTINGS`) |
+| <kbd>ESC</kbd> | **Back / Quit to Menu** | Global |
 
 ---
 
-## 📊 Difficulty Progression
+## 📊 Difficulty Scaling
 
-The difficulty system dynamically assesses your current score and scales both obstacle velocity and density:
+The difficulty system dynamically scales obstacle speeds and spawn frequencies based on current score:
 
-```mermaid
-gantt
-    title Difficulty Level Scaling by Score
-    dateFormat X
-    axisFormat %s
-
-    section Level 1 (Score 0-4)
-    300 px/s | 1.20s Spawn : 0, 5
-    section Level 2 (Score 5-9)
-    350 px/s | 1.05s Spawn (25% Double) : 5, 10
-    section Level 3 (Score 10-14)
-    400 px/s | 0.90s Spawn (40% Double) : 10, 15
-    section Level 4 (Score 15-19)
-    450 px/s | 0.80s Spawn (40% Double) : 15, 20
-    section Level 5 (Score 20+)
-    500 px/s | 0.70s Spawn (50% Double) : 20, 30
-```
-
-| Level | Score Range | Obstacle Speed | Spawn Interval | Hazard Type Distribution |
+| Level | Score Range | Obstacle Speed | Spawn Interval | Hazard Distribution |
 | :---: | :---: | :---: | :---: | :--- |
-| **1** | 0 – 4 | 300 px/s | 1.20 s | 100% Single Obstacle |
-| **2** | 5 – 9 | 350 px/s | 1.05 s | 75% Single, 25% Double |
-| **3** | 10 – 14 | 400 px/s | 0.90 s | 60% Single, 40% Double |
-| **4** | 15 – 19 | 450 px/s | 0.80 s | 60% Single, 40% Double |
-| **5** | 20+ | 500 px/s | 0.70 s | 50% Single, 50% Double (Maximum Intensity) |
-
----
-
-## 🎨 Color Palette & Design Tokens
-
-SHIFT uses a curated neon-synthwave cyberpunk palette:
-
-| Token | Hex / RGB | Role |
-| :--- | :--- | :--- |
-| `BACKGROUND` | `rgb(10, 12, 18)` | Deep void background |
-| `ROAD_COLOR` | `rgb(42, 44, 50)` | Asphalt highway surface |
-| `PLAYER_COLOR` | `rgb(0, 220, 255)` | Electric cyan chassis & glows |
-| `OBSTACLE_COLOR`| `rgb(220, 55, 55)` | Crimson hazard core |
-| `WARNING_COLOR` | `rgb(255, 190, 40)` | High-voltage warning stripes |
-| `HUD_PANEL` | `rgb(20, 23, 30)` | Translucent HUD panels |
+| **1** | 0 – 4 | $300\text{ px/s}$ | $1.25\text{ s}$ | Single Hazards (Tutorial) |
+| **2** | 5 – 9 | $350\text{ px/s}$ | $1.17\text{ s}$ | Single Hazards (Accelerating) |
+| **3** | 10 – 14 | $400\text{ px/s}$ | $1.09\text{ s}$ | Dual Barricades Introduced |
+| **4** | 15 – 19 | $450\text{ px/s}$ | $1.01\text{ s}$ | Dual Barricades & Rapid Lane Traps |
+| **5** | 20 – 24 | $500\text{ px/s}$ | $0.93\text{ s}$ | Advanced Mixed Patterns |
+| **6+** | 25+ | Up to $750\text{ px/s}$ | Down to $0.45\text{ s}$ | Maximum Reflex Intensity |
 
 ---
 
@@ -200,6 +171,26 @@ python main.py
 
 ---
 
+## 🌐 Deployment Options
+
+### 1. Web Browser Deployment (Pygbag / WebAssembly)
+You can deploy SHIFT to run in any web browser without installation:
+```bash
+pip install pygbag
+pygbag .
+```
+Open `http://localhost:8000` to test in your browser. This can be published directly to **GitHub Pages** or **Itch.io**.
+
+### 2. Standalone Windows Desktop App (`.exe`)
+To package SHIFT as a portable Windows `.exe` that anyone can double-click to play:
+```bash
+pip install pyinstaller
+pyinstaller --onefile --noconsole --name "SHIFT" main.py
+```
+Your standalone game executable will be generated in the `dist/` folder!
+
+---
+
 ## 📁 Project Structure
 
 ```text
@@ -210,34 +201,13 @@ SHIFT/
 ├── .gitignore              # Git ignore rules for Python, virtual environments & IDEs
 ├── CONTRIBUTING.md         # Open-source contribution guidelines
 ├── LICENSE                 # MIT Open-Source License
+├── PROGRESS.md             # Developer progress log & roadmap notes
 ├── README.md               # Repository documentation
 ├── requirements.txt        # Pinned Python package dependencies
+├── sync.ps1                # One-click PowerShell Git push automation
+├── highscore.txt           # Local high score persistence file
 └── main.py                 # Core game loop, rendering engine & state logic
 ```
-
----
-
-## 🛣️ Roadmap & Future Enhancements
-
-- [ ] 🎵 **Chiptune & Synthwave Audio Engine**: Dynamic background music that accelerates with difficulty tiers and spatial lane-shift SFX.
-- [ ] ✨ **Particle Glow System**: Neon tire sparks, afterburners, and crash explosion particles.
-- [ ] ⚡ **Power-Up Pickups**:
-  - 🛡️ *Shield Barrier* (Absorbs 1 collision)
-  - ⏱️ *Time Dilation / EMP* (Slows down obstacles for 4 seconds)
-  - 💎 *Score Multipliers* (Double points for close dodges)
-- [ ] 🚗 **Vehicle Customization**: Unlockable color schemes and aerodynamic chassis.
-- [ ] 🌐 **Global Web Leaderboard**: Cloud API integration for cross-platform high-scores.
-
----
-
-## 🤝 Contributing
-
-Contributions are warmly welcome! Whether fixing bugs, optimizing vector render routines, or contributing sound effects:
-
-1. Check out [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
-2. Fork the repository and create a feature branch (`git checkout -b feature/cool-feature`).
-3. Commit your enhancements (`git commit -m 'feat: add neon trail particles'`).
-4. Push to your branch and open a Pull Request!
 
 ---
 
@@ -248,5 +218,5 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 ---
 
 <div align="center">
-  <sub>Built with ❤️ and Pygame by <a href="https://github.com/Snigdha-0210">Snigdha</a>. Star ⭐ the repository if you enjoyed playing!</sub>
+  <sub>Built with ❤️ and Pygame by <a href="https://github.com/Snigdha-0210">Snigdha</a>. Star ⭐ the repository if you enjoy playing!</sub>
 </div>
